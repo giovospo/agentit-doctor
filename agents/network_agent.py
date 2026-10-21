@@ -9,9 +9,14 @@ class NetworkAgent:
 
         text = events_text.lower()
 
+        if "kernel-power" in text:
+            findings.append(
+                "KERNEL_POWER"
+            )
+
         if "tcpip" in text:
             findings.append(
-                "TCPIP_DETECTED"
+                "TCPIP"
             )
 
         if "4207" in text:
@@ -19,9 +24,14 @@ class NetworkAgent:
                 "TCPIP_4207"
             )
 
-        if "kernel-power" in text:
+        if "bugcheck" in text:
             findings.append(
-                "KERNEL_POWER"
+                "BUGCHECK"
+            )
+
+        if "whea" in text:
+            findings.append(
+                "WHEA"
             )
 
         return findings

@@ -18,7 +18,6 @@ findings = network_agent.analyze(
 )
 
 print("Hallazgos:")
-
 print(findings)
 
 rca = RCAAgent()
@@ -28,7 +27,5 @@ result = rca.determine(
 )
 
 print()
-
 print("Posibles causas:")
-
 print(result)
