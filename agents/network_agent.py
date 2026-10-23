@@ -1,27 +1,23 @@
-class NetworkAgent:
+from agents.network_agent import NetworkAgent
 
-    def analyze(
-        self,
-        events_text: str
-    ) -> list[str]:
 
-        findings = []
+def test_tcpip_4207():
 
-        text = events_text.lower()
+    agent = NetworkAgent()
 
-        if "tcpip" in text:
-            findings.append(
-                "TCPIP_DETECTED"
-            )
+    findings = agent.analyze(
+        "Tcpip Event 4207"
+    )
 
-        if "4207" in text:
-            findings.append(
-                "TCPIP_4207"
-            )
+    assert "TCPIP_4207" in findings
 
-        if "kernel-power" in text:
-            findings.append(
-                "KERNEL_POWER"
-            )
 
-        return findings
+def test_kernel_power():
+
+    agent = NetworkAgent()
+
+    findings = agent.analyze(
+        "Kernel-Power Event ID 41"
+    )
+
+    assert "KERNEL_POWER" in findings
