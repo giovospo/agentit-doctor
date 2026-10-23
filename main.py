@@ -1,37 +1,58 @@
-class NetworkAgent:
+import json
 
-    def analyze(
-        self,
-        events_text: str
-    ) -> list[str]:
+from collectors.event_collector import EventCollector
+from collectors.powershell import PowerShellCollector
 
-        findings = []
+from agents.network_agent import NetworkAgent
+from agents.rca_agent import RCAAgent
 
-        text = events_text.lower()
 
-        if "kernel-power" in text:
-            findings.append(
-                "KERNEL_POWER"
-            )
+collector = EventCollector(
+    PowerShellCollector()
+)
 
-        if "tcpip" in text:
-            findings.append(
-                "TCPIP"
-            )
+events = """
+Kernel-Power
+BugCheck
+DRIVER_IRQL_NOT_LESS_OR_EQUAL
+tcpip.sys
+"""
 
-        if "4207" in text:
-            findings.append(
-                "TCPIP_4207"
-            )
 
-        if "bugcheck" in text:
-            findings.append(
-                "BUGCHECK"
-            )
+network_agent = NetworkAgent()
 
-        if "whea" in text:
-            findings.append(
-                "WHEA"
-            )
+findings = network_agent.analyze(
+    events
+)
 
-        return findings
+rca = RCAAgent()
+
+result = rca.determine(
+    findings
+)
+
+diagnosis = {
+    "generated_by": "AgentIT Doctor",
+    "version": "0.3.0",
+    "severity": "Critical",
+    "findings": findings,
+    "root_causes": result,
+    "recommendation":
+        "Review drivers, TCP/IP stack and system stability."
+}
+
+with open(
+    "output/diagnosis.json",
+    "w",
+    encoding="utf-8"
+) as file:
+
+    json.dump(
+        diagnosis,
+        file,
+        indent=4,
+        ensure_ascii=False
+    )
+
+print("Diagnóstico exportado.")
+print(diagnosis)
