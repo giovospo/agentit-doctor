@@ -32,8 +32,13 @@ result = rca.determine(
 )
 
 diagnosis = {
+    "generated_by": "AgentIT Doctor",
+    "version": "0.3.0",
+    "severity": "Critical",
     "findings": findings,
-    "root_causes": result
+    "root_causes": result,
+    "recommendation":
+        "Review drivers, TCP/IP stack and system stability."
 }
 
 with open(

@@ -1,4 +1,7 @@
 {
+    "generated_by": "AgentIT Doctor",
+    "version": "0.3.0",
+    "severity": "Critical",
     "findings": [
         "KERNEL_POWER",
         "TCPIP",
@@ -23,5 +26,6 @@
             "component": "TCPIP Driver",
             "probability": 90
         }
-    ]
+    ],
+    "recommendation": "Review drivers, TCP/IP stack and system stability."
 }
