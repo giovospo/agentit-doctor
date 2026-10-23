@@ -1,216 +1,433 @@
 import sqlite3
+from io import BytesIO
 
 import pandas as pd
+import plotly.express as px
 import streamlit as st
 
-# ==================================
-# CONFIG
-# ==================================
+from pdf_export import generate_pdf
+
+# ==========================================
+# PAGE CONFIG
+# ==========================================
 
 st.set_page_config(
-    page_title="AgentIT Doctor",
+    page_title="AgentIT Doctor Dashboard",
     page_icon="🩺",
     layout="wide"
 )
 
-# ==================================
+# ==========================================
 # DATABASE
-# ==================================
+# ==========================================
 
-conn = sqlite3.connect(
-    "storage/diagnostics.db"
-)
+try:
 
-incidents = pd.read_sql_query(
-    """
-    SELECT *
-    FROM incidents
-    """,
-    conn
-)
+    conn = sqlite3.connect(
+        "storage/diagnostics.db"
+    )
 
-events = pd.read_sql_query(
-    """
-    SELECT *
-    FROM events
-    """,
-    conn
-)
+    incidents = pd.read_sql_query(
+        "SELECT * FROM incidents",
+        conn
+    )
 
-analyses = pd.read_sql_query(
-    """
-    SELECT *
-    FROM analyses
-    """,
-    conn
-)
+    events = pd.read_sql_query(
+        "SELECT * FROM events",
+        conn
+    )
 
-# ==================================
+    analyses = pd.read_sql_query(
+        "SELECT * FROM analyses",
+        conn
+    )
+
+except Exception as ex:
+
+    st.error(
+        f"Database error: {ex}"
+    )
+
+    st.stop()
+
+# ==========================================
 # SIDEBAR
-# ==================================
+# ==========================================
 
-st.sidebar.title("Filtros")
+st.sidebar.title("🔧 Filters")
 
-severity_options = sorted(
-    incidents["severity"].dropna().unique()
+search_incident = st.sidebar.text_input(
+    "Search Incident ID"
 )
+
+severity_options = []
+
+if (
+    not incidents.empty
+    and "severity" in incidents.columns
+):
+
+    severity_options = sorted(
+        incidents["severity"]
+        .dropna()
+        .unique()
+    )
 
 selected_severity = st.sidebar.multiselect(
-    "Severidad",
+    "Severity",
     severity_options,
     default=severity_options
 )
 
-filtered_incidents = incidents[
-    incidents["severity"].isin(
-        selected_severity
-    )
-]
+service_options = []
 
-service_options = sorted(
-    events["source"].dropna().unique()
-)
+if (
+    not events.empty
+    and "source" in events.columns
+):
+
+    service_options = sorted(
+        events["source"]
+        .dropna()
+        .unique()
+    )
 
 selected_services = st.sidebar.multiselect(
-    "Servicio / Evento",
+    "Service/Event",
     service_options,
     default=service_options
 )
 
-filtered_events = events[
-    events["source"].isin(
-        selected_services
-    )
-]
+# ==========================================
+# FILTERING
+# ==========================================
 
-# ==================================
-# TITLE
-# ==================================
+filtered_incidents = incidents.copy()
+
+if (
+    "severity" in filtered_incidents.columns
+    and selected_severity
+):
+
+    filtered_incidents = (
+        filtered_incidents[
+            filtered_incidents["severity"]
+            .isin(selected_severity)
+        ]
+    )
+
+if (
+    search_incident
+    and "id" in filtered_incidents.columns
+):
+
+    filtered_incidents = (
+        filtered_incidents[
+            filtered_incidents["id"]
+            .astype(str)
+            .str.contains(
+                search_incident,
+                case=False,
+                na=False
+            )
+        ]
+    )
+
+filtered_events = events.copy()
+
+if (
+    "source" in filtered_events.columns
+    and selected_services
+):
+
+    filtered_events = (
+        filtered_events[
+            filtered_events["source"]
+            .isin(selected_services)
+        ]
+    )
+
+# ==========================================
+# HEADER
+# ==========================================
 
 st.title(
     "🩺 AgentIT Doctor Dashboard"
 )
 
 st.caption(
-    "SQLite Storage Layer v0.8"
+    "SQLite Storage Layer v0.8 Final"
 )
 
-# ==================================
+# ==========================================
 # KPIs
-# ==================================
+# ==========================================
 
-col1, col2, col3 = st.columns(3)
+kpi1, kpi2, kpi3 = st.columns(3)
 
-col1.metric(
+kpi1.metric(
     "Incidents",
     len(filtered_incidents)
 )
 
-col2.metric(
+kpi2.metric(
     "Events",
     len(filtered_events)
 )
 
-col3.metric(
+kpi3.metric(
     "Root Causes",
     len(analyses)
 )
 
 st.divider()
 
-# ==================================
+# ==========================================
 # INCIDENTS BY DAY
-# ==================================
+# ==========================================
 
 st.subheader(
     "📈 Incidents by Day"
 )
 
-if len(filtered_incidents) > 0:
+if (
+    not filtered_incidents.empty
+    and "created_at" in filtered_incidents.columns
+):
 
-    incidents_chart = (
+    incidents_by_day = (
         filtered_incidents
         .assign(
-            created_day=lambda x:
+            created_day=lambda df:
             pd.to_datetime(
-                x["created_at"]
+                df["created_at"]
             ).dt.date
         )
-        .groupby(
-            "created_day"
-        )
+        .groupby("created_day")
         .size()
-        .reset_index(
-            name="count"
-        )
+        .reset_index(name="count")
     )
 
-    st.line_chart(
-        incidents_chart.set_index(
-            "created_day"
-        )
+    fig_day = px.line(
+        incidents_by_day,
+        x="created_day",
+        y="count",
+        markers=True,
+        title="Incidents by Day"
     )
 
-# ==================================
-# SEVERITY CHART
-# ==================================
+    st.plotly_chart(
+        fig_day,
+        use_container_width=True
+    )
+
+# ==========================================
+# SEVERITY DISTRIBUTION
+# ==========================================
 
 st.subheader(
     "🚨 Severity Distribution"
 )
 
-severity_chart = (
-    filtered_incidents
-    .groupby(
-        "severity"
-    )
-    .size()
-    .reset_index(
-        name="count"
-    )
-)
+if (
+    not filtered_incidents.empty
+    and "severity" in filtered_incidents.columns
+):
 
-if not severity_chart.empty:
-
-    st.bar_chart(
-        severity_chart.set_index(
-            "severity"
-        )
+    severity_chart = (
+        filtered_incidents
+        .groupby("severity")
+        .size()
+        .reset_index(name="count")
     )
 
-# ==================================
-# INCIDENTS
-# ==================================
+    fig = px.bar(
+        severity_chart,
+        x="severity",
+        y="count",
+        color="severity",
+        title="Severity Distribution"
+    )
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
+
+# ==========================================
+# TOP ROOT CAUSES
+# ==========================================
 
 st.subheader(
-    "📋 Incidents"
+    "🔍 Top Root Causes"
 )
+
+if (
+    not analyses.empty
+    and "root_cause" in analyses.columns
+):
+
+    causes = (
+        analyses
+        .groupby("root_cause")
+        .size()
+        .reset_index(name="count")
+        .sort_values(
+            "count",
+            ascending=False
+        )
+        .head(10)
+    )
+
+    fig_causes = px.bar(
+        causes,
+        x="root_cause",
+        y="count",
+        color="count",
+        title="Top Root Causes"
+    )
+
+    st.plotly_chart(
+        fig_causes,
+        use_container_width=True
+    )
+
+# ==========================================
+# TCP/IP EVENTS
+# ==========================================
+
+st.subheader(
+    "🌐 Top TCP/IP Events"
+)
+
+if (
+    not events.empty
+    and "source" in events.columns
+):
+
+    tcp_events = events[
+        events["source"]
+        .astype(str)
+        .str.contains(
+            "TCP",
+            case=False,
+            na=False
+        )
+    ]
+
+    if not tcp_events.empty:
+
+        tcp_chart = (
+            tcp_events
+            .groupby("source")
+            .size()
+            .reset_index(name="count")
+            .sort_values(
+                "count",
+                ascending=False
+            )
+        )
+
+        fig_tcp = px.bar(
+            tcp_chart,
+            x="source",
+            y="count",
+            color="count",
+            title="Top TCP/IP Events"
+        )
+
+        st.plotly_chart(
+            fig_tcp,
+            use_container_width=True
+        )
+
+# ==========================================
+# EXPORTS
+# ==========================================
+
+st.subheader(
+    "📤 Export Data"
+)
+
+col_csv, col_excel, col_pdf = st.columns(3)
+
+# CSV
+
+csv_data = (
+    filtered_incidents
+    .to_csv(index=False)
+    .encode("utf-8")
+)
+
+with col_csv:
+
+    st.download_button(
+        "⬇ Download CSV",
+        csv_data,
+        "incidents.csv",
+        "text/csv"
+    )
+
+# Excel
+
+excel_buffer = BytesIO()
+
+with pd.ExcelWriter(
+    excel_buffer,
+    engine="openpyxl"
+) as writer:
+
+    filtered_incidents.to_excel(
+        writer,
+        sheet_name="Incidents",
+        index=False
+    )
+
+with col_excel:
+
+    st.download_button(
+        "⬇ Download Excel",
+        excel_buffer.getvalue(),
+        "incidents.xlsx",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+# PDF
+
+pdf_buffer = generate_pdf(
+    incidents_count=len(filtered_incidents),
+    events_count=len(filtered_events),
+    root_causes_count=len(analyses)
+)
+
+with col_pdf:
+
+    st.download_button(
+        "⬇ Download PDF",
+        data=pdf_buffer,
+        file_name="agentit_report.pdf",
+        mime="application/pdf"
+    )
+
+# ==========================================
+# TABLES
+# ==========================================
+
+st.subheader("📋 Incidents")
 
 st.dataframe(
     filtered_incidents,
     use_container_width=True
 )
 
-# ==================================
-# EVENTS
-# ==================================
-
-st.subheader(
-    "🌐 Events"
-)
+st.subheader("🌐 Events")
 
 st.dataframe(
     filtered_events,
     use_container_width=True
 )
 
-# ==================================
-# ROOT CAUSES
-# ==================================
-
-st.subheader(
-    "🔍 Root Causes"
-)
+st.subheader("🔍 Root Causes")
 
 st.dataframe(
     analyses,
