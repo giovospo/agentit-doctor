@@ -1,9 +1,17 @@
 import json
 from pathlib import Path
+from datetime import datetime
 
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+
+from agents.network_agent import NetworkAgent
+from agents.rca_agent import RCAAgent
+
+# ==================================================
+# CONFIGURACIÓN
+# ==================================================
 
 st.set_page_config(
     page_title="AgentIT Doctor",
@@ -11,16 +19,41 @@ st.set_page_config(
     layout="wide"
 )
 
-# ==========================
-# Cargar historial
-# ==========================
+# ==================================================
+# CARPETAS
+# ==================================================
+
+history_folder = Path("history")
+history_folder.mkdir(exist_ok=True)
+
+output_file = Path("output/diagnosis.json")
+
+# ==================================================
+# SIDEBAR
+# ==================================================
+
+st.sidebar.title("📁 Historial")
 
 history_files = sorted(
-    Path("history").glob("*.json"),
+    history_folder.glob("*.json"),
     reverse=True
 )
 
-st.sidebar.title("📁 Historial")
+history_limit = st.sidebar.selectbox(
+    "Mostrar",
+    [5, 10, 20, "Todos"]
+)
+
+if history_limit != "Todos":
+    history_files = history_files[:history_limit]
+
+if st.sidebar.button("🗑️ Limpiar historial"):
+
+    for file in history_folder.glob("*.json"):
+        file.unlink()
+
+    st.success("Historial eliminado.")
+    st.rerun()
 
 selected_file = None
 
@@ -32,39 +65,62 @@ if history_files:
         format_func=lambda x: x.name
     )
 
-# ==========================
-# Cargar diagnóstico
-# ==========================
+# ==================================================
+# CARGAR DIAGNÓSTICO
+# ==================================================
 
-if selected_file:
+diagnosis = {
+    "generated_by": "AgentIT Doctor",
+    "version": "0.6.0",
+    "severity": "Normal",
+    "findings": [],
+    "root_causes": []
+}
 
-    with open(
-        selected_file,
-        encoding="utf-8"
-    ) as file:
+try:
 
-        diagnosis = json.load(file)
+    if selected_file:
 
-else:
+        with open(
+            selected_file,
+            encoding="utf-8"
+        ) as file:
 
-    with open(
-        "output/diagnosis.json",
-        encoding="utf-8"
-    ) as file:
+            diagnosis = json.load(file)
 
-        diagnosis = json.load(file)
+    elif output_file.exists():
 
-# ==========================
-# Encabezado
-# ==========================
+        with open(
+            output_file,
+            encoding="utf-8"
+        ) as file:
+
+            diagnosis = json.load(file)
+
+except Exception as error:
+
+    st.error(
+        f"Error cargando diagnóstico: {error}"
+    )
+
+# ==================================================
+# ENCABEZADO
+# ==================================================
 
 st.title("🩺 AgentIT Doctor")
 
-# ==========================
-# KPIs
-# ==========================
+st.caption(
+    "Detección de incidentes Windows y análisis de causa raíz (RCA)"
+)
 
-col1, col2, col3 = st.columns(3)
+if st.button("🔄 Actualizar historial"):
+    st.rerun()
+
+# ==================================================
+# KPIS
+# ==================================================
+
+col1, col2, col3, col4 = st.columns(4)
 
 col1.metric(
     "Hallazgos",
@@ -81,9 +137,19 @@ col3.metric(
     diagnosis["severity"]
 )
 
-# ==========================
-# Severidad
-# ==========================
+max_probability = max(
+    [x["probability"] for x in diagnosis["root_causes"]],
+    default=0
+)
+
+col4.metric(
+    "Probabilidad Máx.",
+    f"{max_probability}%"
+)
+
+# ==================================================
+# SEVERIDAD
+# ==================================================
 
 st.subheader("Severidad")
 
@@ -91,29 +157,37 @@ severity = diagnosis["severity"]
 
 if severity == "Critical":
 
-    st.error("🔴 Crítica")
+    st.error("🔴 Critical")
 
 elif severity == "High":
 
-    st.warning("🟠 Alta")
+    st.warning("🟠 High")
 
 else:
 
     st.success("🟢 Normal")
 
-# ==========================
-# Hallazgos
-# ==========================
+# ==================================================
+# HALLAZGOS
+# ==================================================
 
 st.subheader("Hallazgos")
 
-st.write(
-    diagnosis["findings"]
-)
+if diagnosis["findings"]:
 
-# ==========================
-# Causas raíz
-# ==========================
+    st.write(
+        diagnosis["findings"]
+    )
+
+else:
+
+    st.info(
+        "No existen hallazgos."
+    )
+
+# ==================================================
+# RCA
+# ==================================================
 
 st.subheader("Causas Raíz")
 
@@ -121,32 +195,70 @@ causes_df = pd.DataFrame(
     diagnosis["root_causes"]
 )
 
-st.dataframe(
-    causes_df
-)
-
-# ==========================
-# Gráfico
-# ==========================
-
 if not causes_df.empty:
+
+    st.dataframe(
+        causes_df,
+        use_container_width=True
+    )
 
     fig = px.bar(
         causes_df,
         x="component",
         y="probability",
-        title="Probabilidad de Causa Raíz",
         color="probability",
-        text="probability"
+        text="probability",
+        title="Probabilidad de causa raíz"
     )
 
     st.plotly_chart(
         fig,
         use_container_width=True
     )
-# ==========================
-# Carga manual de logs
-# ==========================
+
+else:
+
+    st.info(
+        "No hay causas raíz calculadas."
+    )
+
+# ==================================================
+# TENDENCIA HISTÓRICA
+# ==================================================
+
+st.subheader("📈 Tendencias Históricas")
+
+trend_files = list(
+    history_folder.glob("*.json")
+)
+
+if trend_files:
+
+    trend_df = pd.DataFrame(
+        {
+            "Diagnóstico": [
+                x.stem
+                for x in trend_files
+            ]
+        }
+    )
+
+    trend_df["Cantidad"] = 1
+
+    trend_chart = px.line(
+        trend_df,
+        y="Cantidad",
+        title="Cantidad de diagnósticos almacenados"
+    )
+
+    st.plotly_chart(
+        trend_chart,
+        use_container_width=True
+    )
+
+# ==================================================
+# CARGA DE LOGS
+# ==================================================
 
 st.subheader("📂 Carga Manual de Logs")
 
@@ -157,9 +269,7 @@ uploaded_file = st.file_uploader(
 
 if uploaded_file:
 
-    content = uploaded_file.read()
-
-    text = content.decode(
+    text = uploaded_file.read().decode(
         "utf-8",
         errors="ignore"
     )
@@ -168,32 +278,51 @@ if uploaded_file:
         "Contenido del Log"
     )
 
-    st.text(text)
+    st.text_area(
+        "Contenido",
+        text,
+        height=250
+    )
 
-    findings = []
+    # ==========================================
+    # ANALISIS AUTOMATICO
+    # ==========================================
 
-    log_text = text.lower()
+    network_agent = NetworkAgent()
 
-    if "kernel-power" in log_text:
-        findings.append("KERNEL_POWER")
+    findings = network_agent.analyze(
+        text
+    )
 
-    if "bugcheck" in log_text:
-        findings.append("BUGCHECK")
+    rca_agent = RCAAgent()
 
-    if "driver_irql_not_less_or_equal" in log_text:
-        findings.append("IRQL_ERROR")
+    root_causes = rca_agent.determine(
+        findings
+    )
 
-    if "tcpip.sys" in log_text:
-        findings.append("TCPIP_DRIVER")
-
-    if "whea" in log_text:
-        findings.append("WHEA")
+    diagnosis_from_log = {
+        "generated_by": "AgentIT Doctor",
+        "version": "0.6.0",
+        "severity": "Critical",
+        "findings": findings,
+        "root_causes": root_causes
+    }
 
     st.subheader(
         "Hallazgos Detectados"
     )
 
     st.write(findings)
+
+    st.subheader(
+        "RCA Automático"
+    )
+
+    st.write(root_causes)
+
+    # ==========================================
+    # RISK SCORE
+    # ==========================================
 
     risk_score = len(findings) * 20
 
@@ -204,25 +333,51 @@ if uploaded_file:
 
     if risk_score >= 80:
 
-        st.error(
-            "🔴 Riesgo Alto"
-        )
+        st.error("🔴 Riesgo Alto")
 
     elif risk_score >= 40:
 
-        st.warning(
-            "🟠 Riesgo Medio"
-        )
+        st.warning("🟠 Riesgo Medio")
 
     else:
 
+        st.success("🟢 Riesgo Bajo")
+
+    # ==========================================
+    # GUARDAR HISTORIAL
+    # ==========================================
+
+    timestamp = datetime.now().strftime(
+        "%Y%m%d_%H%M%S"
+    )
+
+    history_file = (
+        history_folder /
+        f"{timestamp}.json"
+    )
+
+    if not history_file.exists():
+
+        with open(
+            history_file,
+            "w",
+            encoding="utf-8"
+        ) as file:
+
+            json.dump(
+                diagnosis_from_log,
+                file,
+                indent=4,
+                ensure_ascii=False
+            )
+
         st.success(
-            "🟢 Riesgo Bajo"
+            f"✅ Diagnóstico guardado: {history_file.name}"
         )
 
-# ==========================
-# Descargar diagnóstico
-# ==========================
+# ==================================================
+# DESCARGA
+# ==================================================
 
 st.download_button(
     "📥 Descargar Diagnóstico",
@@ -234,4 +389,3 @@ st.download_button(
     file_name="diagnostico.json",
     mime="application/json"
 )
-# =====
