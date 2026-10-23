@@ -1,15 +1,9 @@
 import json
-
-from collectors.event_collector import EventCollector
-from collectors.powershell import PowerShellCollector
+from datetime import datetime
 
 from agents.network_agent import NetworkAgent
 from agents.rca_agent import RCAAgent
 
-
-collector = EventCollector(
-    PowerShellCollector()
-)
 
 events = """
 Kernel-Power
@@ -50,6 +44,23 @@ with open(
     json.dump(
         diagnosis,
         file,
+        indent=4,
+        ensure_ascii=False
+    )
+
+timestamp = datetime.now().strftime(
+    "%Y%m%d_%H%M%S"
+)
+
+with open(
+    f"history/{timestamp}.json",
+    "w",
+    encoding="utf-8"
+) as history_file:
+
+    json.dump(
+        diagnosis,
+        history_file,
         indent=4,
         ensure_ascii=False
     )
