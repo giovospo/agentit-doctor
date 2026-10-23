@@ -1,0 +1,27 @@
+{
+    "findings": [
+        "KERNEL_POWER",
+        "TCPIP",
+        "BUGCHECK",
+        "IRQL_ERROR",
+        "TCPIP_DRIVER"
+    ],
+    "root_causes": [
+        {
+            "component": "Kernel-Power",
+            "probability": 85
+        },
+        {
+            "component": "Windows Crash",
+            "probability": 90
+        },
+        {
+            "component": "Driver Conflict",
+            "probability": 95
+        },
+        {
+            "component": "TCPIP Driver",
+            "probability": 90
+        }
+    ]
+}
