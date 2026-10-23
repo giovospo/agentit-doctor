@@ -1,34 +1,37 @@
-from collectors.event_collector import EventCollector
-from collectors.powershell import PowerShellCollector
+class NetworkAgent:
 
-from agents.network_agent import NetworkAgent
-from agents.rca_agent import RCAAgent
+    def analyze(
+        self,
+        events_text: str
+    ) -> list[str]:
 
+        findings = []
 
-collector = EventCollector(
-    PowerShellCollector()
-)
+        text = events_text.lower()
 
-events = collector.collect()
+        if "kernel-power" in text:
+            findings.append(
+                "KERNEL_POWER"
+            )
 
-network_agent = NetworkAgent()
+        if "tcpip" in text:
+            findings.append(
+                "TCPIP"
+            )
 
-findings = network_agent.analyze(
-    events
-)
+        if "4207" in text:
+            findings.append(
+                "TCPIP_4207"
+            )
 
-print("Hallazgos:")
+        if "bugcheck" in text:
+            findings.append(
+                "BUGCHECK"
+            )
 
-print(findings)
+        if "whea" in text:
+            findings.append(
+                "WHEA"
+            )
 
-rca = RCAAgent()
-
-result = rca.determine(
-    findings
-)
-
-print()
-
-print("Posibles causas:")
-
-print(result)
+        return findings
