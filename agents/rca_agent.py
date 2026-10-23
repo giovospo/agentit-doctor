@@ -36,3 +36,30 @@ class RCAAgent:
             })
 
         return causes
+    if "BUGCHECK" in findings:
+
+    causes.append({
+        "component": "Windows Crash",
+        "probability": 90
+    })
+
+if "IRQL_ERROR" in findings:
+
+    causes.append({
+        "component": "Driver Conflict",
+        "probability": 95
+    })
+
+if "TCPIP_DRIVER" in findings:
+
+    causes.append({
+        "component": "TCPIP Driver",
+        "probability": 90
+    })
+
+if "WHEA" in findings:
+
+    causes.append({
+        "component": "Hardware Error",
+        "probability": 95
+    })
