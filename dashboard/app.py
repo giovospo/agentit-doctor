@@ -541,10 +541,10 @@ if (
             color="count"
         )
 
-    st.plotly_chart(
-        fig,
-        width="stretch"
-    )
+        st.plotly_chart(
+            configure_plotly(fig_tcp),
+            use_container_width=True
+        )
 
 # ==========================================
 # EXPORTS
@@ -629,8 +629,8 @@ st.dataframe(
 st.subheader("🔍 Analyses")
 
 st.dataframe(
-    filtered_incidents,
-    width="stretch"
+    filtered_analyses,
+    use_container_width=True
 )
 
 # ==========================================
