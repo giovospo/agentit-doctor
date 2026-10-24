@@ -50,7 +50,10 @@ class DiagnosisRepository:
 
         self.conn.commit()
 
-    def get_incident(self, incident_id):
+    def get_incident(
+        self,
+        incident_id
+    ):
 
         self.cursor.execute(
             """
@@ -101,6 +104,37 @@ class DiagnosisRepository:
         )
 
         self.conn.commit()
+
+    def get_events_by_incident(
+        self,
+        incident_id
+    ):
+
+        self.cursor.execute(
+            """
+            SELECT *
+            FROM events
+            WHERE incident_id = ?
+            """,
+            (incident_id,)
+        )
+
+        columns = [
+            column[0]
+            for column in self.cursor.description
+        ]
+
+        rows = self.cursor.fetchall()
+
+        return [
+            dict(
+                zip(
+                    columns,
+                    row
+                )
+            )
+            for row in rows
+        ]
 
     # ======================
     # ANALYSES
@@ -227,4 +261,5 @@ class DiagnosisRepository:
         }
 
     def close(self):
+
         self.conn.close()

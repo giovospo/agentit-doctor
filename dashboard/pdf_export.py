@@ -1,14 +1,14 @@
 from io import BytesIO
 
 from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import (
-    SimpleDocTemplate,
     Paragraph,
+    SimpleDocTemplate,
     Spacer,
     Table,
-    TableStyle
+    TableStyle,
 )
-from reportlab.lib.styles import getSampleStyleSheet
 
 
 def generate_pdf(
@@ -23,40 +23,40 @@ def generate_pdf(
 
     styles = getSampleStyleSheet()
 
-    content = []
+    elements = []
 
-    content.append(
+    elements.append(
         Paragraph(
             "AgentIT Doctor Report",
             styles["Title"]
         )
     )
 
-    content.append(
+    elements.append(
         Spacer(1, 12)
     )
 
-    data = [
+    summary = [
         ["Metric", "Value"],
         ["Incidents", str(incidents_count)],
         ["Events", str(events_count)],
         ["Root Causes", str(root_causes_count)]
     ]
 
-    table = Table(data)
+    table = Table(summary)
 
     table.setStyle(
         TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-            ("GRID", (0, 0), (-1, -1), 1, colors.black)
+            ("GRID", (0, 0), (-1, -1), 1, colors.black),
         ])
     )
 
-    content.append(table)
+    elements.append(table)
 
-    doc.build(content)
+    doc.build(elements)
 
     buffer.seek(0)
 
-    return buffer
+    return buffer.getvalue()

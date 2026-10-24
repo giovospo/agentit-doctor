@@ -7,6 +7,32 @@ import streamlit as st
 
 from pdf_export import generate_pdf
 
+
+# ==========================================
+# HELPERS
+# ==========================================
+
+def has_columns(df, columns):
+    return all(column in df.columns for column in columns)
+
+
+def safe_dataframe(df):
+    if df is None:
+        return pd.DataFrame()
+
+    return df
+
+
+def configure_plotly(fig):
+    fig.update_layout(
+        template="plotly_white",
+        hovermode="x unified",
+        height=450
+    )
+
+    return fig
+
+
 # ==========================================
 # PAGE CONFIG
 # ==========================================
@@ -42,6 +68,18 @@ try:
         conn
     )
 
+    incidents = safe_dataframe(
+        incidents
+    )
+
+    events = safe_dataframe(
+        events
+    )
+
+    analyses = safe_dataframe(
+        analyses
+    )
+
 except Exception as ex:
 
     st.error(
@@ -64,7 +102,10 @@ severity_options = []
 
 if (
     not incidents.empty
-    and "severity" in incidents.columns
+    and has_columns(
+        incidents,
+        ["severity"]
+    )
 ):
 
     severity_options = sorted(
@@ -83,7 +124,10 @@ service_options = []
 
 if (
     not events.empty
-    and "source" in events.columns
+    and has_columns(
+        events,
+        ["source"]
+    )
 ):
 
     service_options = sorted(
@@ -99,13 +143,16 @@ selected_services = st.sidebar.multiselect(
 )
 
 # ==========================================
-# FILTERING
+# FILTER INCIDENTS
 # ==========================================
 
 filtered_incidents = incidents.copy()
 
 if (
-    "severity" in filtered_incidents.columns
+    has_columns(
+        filtered_incidents,
+        ["severity"]
+    )
     and selected_severity
 ):
 
@@ -118,7 +165,10 @@ if (
 
 if (
     search_incident
-    and "id" in filtered_incidents.columns
+    and has_columns(
+        filtered_incidents,
+        ["id"]
+    )
 ):
 
     filtered_incidents = (
@@ -133,10 +183,17 @@ if (
         ]
     )
 
+# ==========================================
+# FILTER EVENTS
+# ==========================================
+
 filtered_events = events.copy()
 
 if (
-    "source" in filtered_events.columns
+    has_columns(
+        filtered_events,
+        ["source"]
+    )
     and selected_services
 ):
 
@@ -145,6 +202,70 @@ if (
             filtered_events["source"]
             .isin(selected_services)
         ]
+    )
+
+if (
+    not filtered_incidents.empty
+    and has_columns(
+        filtered_events,
+        ["incident_id"]
+    )
+    and has_columns(
+        filtered_incidents,
+        ["id"]
+    )
+):
+
+    filtered_events = (
+        filtered_events[
+            filtered_events["incident_id"]
+            .isin(
+                filtered_incidents["id"]
+            )
+        ]
+    )
+
+# ==========================================
+# FILTER ANALYSES
+# ==========================================
+
+filtered_analyses = analyses.copy()
+
+if (
+    not filtered_incidents.empty
+    and has_columns(
+        filtered_analyses,
+        ["incident_id"]
+    )
+    and has_columns(
+        filtered_incidents,
+        ["id"]
+    )
+):
+
+    filtered_analyses = (
+        filtered_analyses[
+            filtered_analyses["incident_id"]
+            .isin(
+                filtered_incidents["id"]
+            )
+        ]
+    )
+
+if (
+    not filtered_analyses.empty
+    and has_columns(
+        filtered_analyses,
+        ["confidence"]
+    )
+):
+
+    filtered_analyses = (
+        filtered_analyses
+        .sort_values(
+            "confidence",
+            ascending=False
+        )
     )
 
 # ==========================================
@@ -156,31 +277,83 @@ st.title(
 )
 
 st.caption(
-    "SQLite Storage Layer v0.8 Final"
+    "v0.9 Alpha - RCA Engine Enabled"
 )
 
 # ==========================================
-# KPIs
+# KPI
 # ==========================================
 
-kpi1, kpi2, kpi3 = st.columns(3)
+k1, k2, k3 = st.columns(3)
 
-kpi1.metric(
+k1.metric(
     "Incidents",
     len(filtered_incidents)
 )
 
-kpi2.metric(
+k2.metric(
     "Events",
     len(filtered_events)
 )
 
-kpi3.metric(
+k3.metric(
     "Root Causes",
-    len(analyses)
+    (
+        filtered_analyses["root_cause"].count()
+        if has_columns(
+            filtered_analyses,
+            ["root_cause"]
+        )
+        else 0
+    )
 )
 
 st.divider()
+
+# ==========================================
+# INCIDENT DETAIL
+# ==========================================
+
+if (
+    not filtered_incidents.empty
+    and has_columns(
+        filtered_incidents,
+        ["id"]
+    )
+):
+
+    incident_options = sorted(
+        filtered_incidents["id"]
+        .astype(str)
+        .unique()
+    )
+
+    selected_incident = st.selectbox(
+        "🔎 Incident Detail",
+        [""] + incident_options
+    )
+
+    if selected_incident:
+
+        st.subheader(
+            "Incident Information"
+        )
+
+        incident_detail = (
+            filtered_incidents[
+                filtered_incidents["id"]
+                == selected_incident
+            ]
+        )
+
+        if not incident_detail.empty:
+
+            st.json(
+                incident_detail
+                .to_dict(
+                    orient="records"
+                )[0]
+            )
 
 # ==========================================
 # INCIDENTS BY DAY
@@ -192,7 +365,10 @@ st.subheader(
 
 if (
     not filtered_incidents.empty
-    and "created_at" in filtered_incidents.columns
+    and has_columns(
+        filtered_incidents,
+        ["created_at"]
+    )
 ):
 
     incidents_by_day = (
@@ -208,21 +384,20 @@ if (
         .reset_index(name="count")
     )
 
-    fig_day = px.line(
+    fig_day = px.area(
         incidents_by_day,
         x="created_day",
         y="count",
-        markers=True,
         title="Incidents by Day"
     )
 
     st.plotly_chart(
-        fig_day,
+        configure_plotly(fig_day),
         use_container_width=True
     )
 
 # ==========================================
-# SEVERITY DISTRIBUTION
+# SEVERITY
 # ==========================================
 
 st.subheader(
@@ -231,7 +406,10 @@ st.subheader(
 
 if (
     not filtered_incidents.empty
-    and "severity" in filtered_incidents.columns
+    and has_columns(
+        filtered_incidents,
+        ["severity"]
+    )
 ):
 
     severity_chart = (
@@ -245,17 +423,16 @@ if (
         severity_chart,
         x="severity",
         y="count",
-        color="severity",
-        title="Severity Distribution"
+        color="severity"
     )
 
     st.plotly_chart(
-        fig,
+        configure_plotly(fig),
         use_container_width=True
     )
 
 # ==========================================
-# TOP ROOT CAUSES
+# ROOT CAUSES
 # ==========================================
 
 st.subheader(
@@ -263,12 +440,15 @@ st.subheader(
 )
 
 if (
-    not analyses.empty
-    and "root_cause" in analyses.columns
+    not filtered_analyses.empty
+    and has_columns(
+        filtered_analyses,
+        ["root_cause"]
+    )
 ):
 
     causes = (
-        analyses
+        filtered_analyses
         .groupby("root_cause")
         .size()
         .reset_index(name="count")
@@ -283,17 +463,44 @@ if (
         causes,
         x="root_cause",
         y="count",
-        color="count",
-        title="Top Root Causes"
+        color="count"
     )
 
     st.plotly_chart(
-        fig_causes,
+        configure_plotly(fig_causes),
         use_container_width=True
     )
 
 # ==========================================
-# TCP/IP EVENTS
+# RCA FINDINGS
+# ==========================================
+
+st.subheader(
+    "🤖 RCA Findings"
+)
+
+if not filtered_analyses.empty:
+
+    cols = [
+        c
+        for c in [
+            "incident_id",
+            "root_cause",
+            "confidence",
+            "recommendation"
+        ]
+        if c in filtered_analyses.columns
+    ]
+
+    if cols:
+
+        st.dataframe(
+            filtered_analyses[cols],
+            use_container_width=True
+        )
+
+# ==========================================
+# TCP/IP
 # ==========================================
 
 st.subheader(
@@ -301,12 +508,15 @@ st.subheader(
 )
 
 if (
-    not events.empty
-    and "source" in events.columns
+    not filtered_events.empty
+    and has_columns(
+        filtered_events,
+        ["source"]
+    )
 ):
 
-    tcp_events = events[
-        events["source"]
+    tcp_events = filtered_events[
+        filtered_events["source"]
         .astype(str)
         .str.contains(
             "TCP",
@@ -322,22 +532,17 @@ if (
             .groupby("source")
             .size()
             .reset_index(name="count")
-            .sort_values(
-                "count",
-                ascending=False
-            )
         )
 
         fig_tcp = px.bar(
             tcp_chart,
             x="source",
             y="count",
-            color="count",
-            title="Top TCP/IP Events"
+            color="count"
         )
 
         st.plotly_chart(
-            fig_tcp,
+            configure_plotly(fig_tcp),
             use_container_width=True
         )
 
@@ -349,9 +554,7 @@ st.subheader(
     "📤 Export Data"
 )
 
-col_csv, col_excel, col_pdf = st.columns(3)
-
-# CSV
+c1, c2, c3 = st.columns(3)
 
 csv_data = (
     filtered_incidents
@@ -359,7 +562,7 @@ csv_data = (
     .encode("utf-8")
 )
 
-with col_csv:
+with c1:
 
     st.download_button(
         "⬇ Download CSV",
@@ -367,8 +570,6 @@ with col_csv:
         "incidents.csv",
         "text/csv"
     )
-
-# Excel
 
 excel_buffer = BytesIO()
 
@@ -383,7 +584,7 @@ with pd.ExcelWriter(
         index=False
     )
 
-with col_excel:
+with c2:
 
     st.download_button(
         "⬇ Download Excel",
@@ -392,15 +593,13 @@ with col_excel:
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
-# PDF
-
 pdf_buffer = generate_pdf(
     incidents_count=len(filtered_incidents),
     events_count=len(filtered_events),
-    root_causes_count=len(analyses)
+    root_causes_count=len(filtered_analyses)
 )
 
-with col_pdf:
+with c3:
 
     st.download_button(
         "⬇ Download PDF",
@@ -427,11 +626,18 @@ st.dataframe(
     use_container_width=True
 )
 
-st.subheader("🔍 Root Causes")
+st.subheader("🔍 Analyses")
 
 st.dataframe(
-    analyses,
+    filtered_analyses,
     use_container_width=True
 )
 
-conn.close()
+# ==========================================
+# CLOSE CONNECTION
+# ==========================================
+
+try:
+    conn.close()
+except Exception:
+    pass
