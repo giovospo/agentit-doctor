@@ -68,6 +68,11 @@ try:
         conn
     )
 
+    evidence = pd.read_sql_query(
+        "SELECT * FROM evidence",
+        conn
+    )
+
     incidents = safe_dataframe(
         incidents
     )
@@ -78,6 +83,10 @@ try:
 
     analyses = safe_dataframe(
         analyses
+    )
+
+    evidence = safe_dataframe(
+        evidence
     )
 
 except Exception as ex:
@@ -230,6 +239,36 @@ if (
 # ==========================================
 
 filtered_analyses = analyses.copy()
+
+evidence_summary = pd.DataFrame()
+
+if (
+    not evidence.empty
+    and has_columns(
+        evidence,
+        [
+            "incident_id",
+            "root_cause",
+            "evidence"
+        ]
+    )
+):
+
+    evidence_summary = (
+        evidence
+        .groupby(
+            [
+                "incident_id",
+                "root_cause"
+            ]
+        )["evidence"]
+        .apply(
+            lambda x: ", ".join(
+                x.astype(str)
+            )
+        )
+        .reset_index()
+    )
 
 if (
     not filtered_incidents.empty
@@ -481,24 +520,41 @@ st.subheader(
 
 if not filtered_analyses.empty:
 
+    display_analyses = (
+        filtered_analyses.copy()
+    )
+
+    if not evidence_summary.empty:
+
+        display_analyses = (
+            display_analyses.merge(
+                evidence_summary,
+                how="left",
+                on=[
+                    "incident_id",
+                    "root_cause"
+                ]
+            )
+        )
+
     cols = [
         c
         for c in [
             "incident_id",
             "root_cause",
             "confidence",
+            "evidence",
             "recommendation"
         ]
-        if c in filtered_analyses.columns
+        if c in display_analyses.columns
     ]
 
     if cols:
 
         st.dataframe(
-            filtered_analyses[cols],
+            display_analyses[cols],
             use_container_width=True
         )
-
 # ==========================================
 # TCP/IP
 # ==========================================

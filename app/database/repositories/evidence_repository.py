@@ -6,7 +6,6 @@ class EvidenceRepository:
     def __init__(self):
 
         self.conn = get_connection()
-
         self.cursor = self.conn.cursor()
 
     def create_evidence(
@@ -18,7 +17,7 @@ class EvidenceRepository:
 
         self.cursor.execute(
             """
-            INSERT INTO evidence(
+            INSERT OR IGNORE INTO evidence(
                 incident_id,
                 root_cause,
                 evidence
@@ -83,8 +82,14 @@ class EvidenceRepository:
 
         try:
 
+            self.cursor.close()
+
+        except Exception:
+            pass
+
+        try:
+
             self.conn.close()
 
         except Exception:
-
             pass
