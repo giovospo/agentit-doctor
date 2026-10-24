@@ -1,46 +1,55 @@
+from typing import Any
+
 from ..connection import get_connection
 
 
 class EvidenceRepository:
 
-    def __init__(self):
+    def __init__(self) -> None:
 
         self.conn = get_connection()
         self.cursor = self.conn.cursor()
 
     def create_evidence(
         self,
-        incident_id,
-        root_cause,
-        evidence
-    ):
+        incident_id: str,
+        root_cause: str,
+        evidence: str
+    ) -> None:
 
-        self.cursor.execute(
-            """
-            INSERT OR IGNORE INTO evidence(
-                incident_id,
-                root_cause,
-                evidence
-            )
-            VALUES(
-                ?,
-                ?,
-                ?
-            )
-            """,
-            (
-                incident_id,
-                root_cause,
-                evidence
-            )
-        )
+        try:
 
-        self.conn.commit()
+            self.cursor.execute(
+                """
+                INSERT OR IGNORE INTO evidence(
+                    incident_id,
+                    root_cause,
+                    evidence
+                )
+                VALUES(
+                    ?,
+                    ?,
+                    ?
+                )
+                """,
+                (
+                    incident_id,
+                    root_cause,
+                    evidence
+                )
+            )
+
+            self.conn.commit()
+
+        except Exception:
+
+            self.conn.rollback()
+            raise
 
     def get_evidence_by_incident(
         self,
-        incident_id
-    ):
+        incident_id: str
+    ) -> list[Any]:
 
         self.cursor.execute(
             """
@@ -61,7 +70,9 @@ class EvidenceRepository:
 
         return self.cursor.fetchall()
 
-    def get_all_evidence(self):
+    def get_all_evidence(
+        self
+    ) -> list[Any]:
 
         self.cursor.execute(
             """
@@ -78,18 +89,14 @@ class EvidenceRepository:
 
         return self.cursor.fetchall()
 
-    def close(self):
+    def close(self) -> None:
 
         try:
-
             self.cursor.close()
-
         except Exception:
             pass
 
         try:
-
             self.conn.close()
-
         except Exception:
             pass
