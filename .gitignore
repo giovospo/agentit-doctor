@@ -224,3 +224,45 @@ __marimo__/
 history/*.json
 output/*.json
 *.log
+# ==========================================
+# AgentIT Doctor
+# ==========================================
+
+# SQLite databases
+storage/*.db
+storage/*.sqlite
+storage/*.sqlite3
+
+# Local database backups
+*_backup.db
+*_backup.sqlite
+*_backup.sqlite3
+
+# Reports and artifacts
+reports/
+artifacts/
+
+# JSON exports
+history/*.json
+output/*.json
+
+# Logs
+*.log
+
+# Coverage
+.coverage
+htmlcov/
+
+# Pytest
+.pytest_cache/
+
+# Python caches
+__pycache__/
+*.pyc
+
+# Streamlit secrets and cache
+.streamlit/secrets.toml
+.streamlit/cache/
+
+# VS Code local settings
+.vscode/
