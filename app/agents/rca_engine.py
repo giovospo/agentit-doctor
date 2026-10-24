@@ -2,6 +2,7 @@ from app.agents.correlation_agent import CorrelationAgent
 from app.agents.scoring_agent import ScoringAgent
 from app.agents.hypothesis_builder import HypothesisBuilder
 from app.agents.recommendation_agent import RecommendationAgent
+from app.agents.evidence_engine import EvidenceEngine
 
 from app.database.repositories.diagnosis_repository import (
     DiagnosisRepository
@@ -23,6 +24,7 @@ class RCAEngine:
         scoring = ScoringAgent()
         builder = HypothesisBuilder()
         recommender = RecommendationAgent()
+        evidence_engine = EvidenceEngine()
 
         findings = correlation.correlate(
             events
@@ -37,6 +39,11 @@ class RCAEngine:
                 len(events)
             )
 
+            evidence = evidence_engine.collect(
+                finding,
+                events
+            )
+
             hypothesis = builder.build(
                 finding,
                 confidence
@@ -47,6 +54,10 @@ class RCAEngine:
             ] = recommender.recommend(
                 finding
             )
+
+            hypothesis[
+                "evidence"
+            ] = evidence
 
             results.append(
                 hypothesis
@@ -80,6 +91,22 @@ class RCAEngine:
                     entity_id=incident_id,
                     details=result["root_cause"]
                 )
+
+        except Exception as ex:
+
+            try:
+                repo.conn.rollback()
+            except Exception:
+                pass
+
+            audit.log(
+                action="RCA_ERROR",
+                entity_type="analysis",
+                entity_id=incident_id,
+                details=str(ex)
+            )
+
+            raise
 
         finally:
 
@@ -158,6 +185,17 @@ class RCAEngine:
             )
 
             return results
+
+        except Exception as ex:
+
+            audit.log(
+                action="RCA_ERROR",
+                entity_type="incident",
+                entity_id=incident_id,
+                details=str(ex)
+            )
+
+            raise
 
         finally:
 
