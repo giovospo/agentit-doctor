@@ -12,6 +12,10 @@ from app.database.repositories.audit_repository import (
     AuditRepository
 )
 
+from app.database.repositories.evidence_repository import (
+    EvidenceRepository
+)
+
 
 class RCAEngine:
 
@@ -73,6 +77,7 @@ class RCAEngine:
 
         repo = DiagnosisRepository()
         audit = AuditRepository()
+        evidence_repo = EvidenceRepository()
 
         try:
 
@@ -84,6 +89,17 @@ class RCAEngine:
                     confidence=result["confidence"],
                     recommendation=result["recommendation"]
                 )
+
+                for evidence in result.get(
+                    "evidence",
+                    []
+                ):
+
+                    evidence_repo.create_evidence(
+                        incident_id=incident_id,
+                        root_cause=result["root_cause"],
+                        evidence=evidence
+                    )
 
                 audit.log(
                     action="RCA_ANALYSIS_CREATED",
@@ -110,6 +126,7 @@ class RCAEngine:
 
         finally:
 
+            evidence_repo.close()
             audit.close()
             repo.close()
 
