@@ -1,5 +1,12 @@
 import sqlite3
+import sys
+from pathlib import Path
 from io import BytesIO
+
+ROOT = Path(__file__).resolve().parents[1]
+
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 import pandas as pd
 import plotly.express as px
@@ -7,6 +14,9 @@ import streamlit as st
 
 from pdf_export import generate_pdf
 
+from app.services.rca_timeline_service import (
+    RCATimelineService
+)
 
 # ==========================================
 # HELPERS
@@ -368,32 +378,77 @@ if (
     )
 
     selected_incident = st.selectbox(
-        "🔎 Incident Detail",
-        [""] + incident_options
+    "🔎 Incident Detail",
+    [""] + incident_options
+)
+
+if selected_incident:
+
+    st.subheader(
+        "📜 RCA Timeline"
     )
 
-    if selected_incident:
+    timeline = (
+        RCATimelineService()
+        .build_timeline(
+            selected_incident
+        )
+    )
 
-        st.subheader(
-            "Incident Information"
+    st.json(
+        timeline
+    )
+
+    st.subheader(
+        "Incident Information"
+    )
+
+    incident_detail = (
+        filtered_incidents[
+            filtered_incidents["id"]
+            == selected_incident
+        ]
+    )
+
+    if not incident_detail.empty:
+
+        st.json(
+            incident_detail
+            .to_dict(
+                orient="records"
+            )[0]
         )
 
-        incident_detail = (
-            filtered_incidents[
-                filtered_incidents["id"]
-                == selected_incident
-            ]
+    timeline = (
+        RCATimelineService()
+        .build_timeline(
+            selected_incident
         )
+    )
 
-        if not incident_detail.empty:
+    st.json(
+        timeline
+    )
 
-            st.json(
-                incident_detail
-                .to_dict(
-                    orient="records"
-                )[0]
-            )
+    st.subheader(
+        "Incident Information"
+    )
 
+    incident_detail = (
+        filtered_incidents[
+            filtered_incidents["id"]
+            == selected_incident
+        ]
+    )
+
+    if not incident_detail.empty:
+
+        st.json(
+            incident_detail
+            .to_dict(
+                orient="records"
+            )[0]
+        )
 # ==========================================
 # INCIDENTS BY DAY
 # ==========================================

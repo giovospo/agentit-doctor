@@ -175,7 +175,41 @@ class DiagnosisRepository:
 
         self.conn.commit()
 
-    # ======================
+    def get_analyses_by_incident(
+        self,
+        incident_id
+    ):
+
+        self.cursor.execute(
+            """
+            SELECT *
+            FROM analyses
+            WHERE incident_id = ?
+            ORDER BY analyzed_at DESC
+            """,
+            (
+                incident_id,
+            )
+        )
+
+        columns = [
+            column[0]
+            for column in self.cursor.description
+        ]
+
+        rows = self.cursor.fetchall()
+
+        return [
+            dict(
+                zip(
+                    columns,
+                    row
+                )
+            )
+            for row in rows
+        ]
+
+        # ======================
     # SAVE COMPLETE DIAGNOSIS
     # ======================
 
@@ -262,4 +296,12 @@ class DiagnosisRepository:
 
     def close(self):
 
-        self.conn.close()
+        try:
+            self.cursor.close()
+        except Exception:
+            pass
+
+        try:
+            self.conn.close()
+        except Exception:
+            pass
