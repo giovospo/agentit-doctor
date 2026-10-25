@@ -199,7 +199,7 @@ if not causes_df.empty:
 
     st.dataframe(
         causes_df,
-        use_container_width=True
+        width="stretch"
     )
 
     fig = px.bar(
@@ -213,7 +213,7 @@ if not causes_df.empty:
 
     st.plotly_chart(
         fig,
-        use_container_width=True
+        width="stretch"
     )
 
 else:
@@ -253,7 +253,7 @@ if trend_files:
 
     st.plotly_chart(
         trend_chart,
-        use_container_width=True
+        width="stretch"
     )
 
 # ==================================================

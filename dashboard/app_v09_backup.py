@@ -251,7 +251,7 @@ if (
                 filtered_incidents["id"]
                 == selected_incident
             ],
-            use_container_width=True
+            width="stretch"
         )
 
 # ==========================================
@@ -293,7 +293,7 @@ if (
 
     st.plotly_chart(
         fig_day,
-        use_container_width=True
+        width="stretch"
     )
 
 # ==========================================
@@ -325,7 +325,7 @@ if (
 
     st.plotly_chart(
         fig,
-        use_container_width=True
+        width="stretch"
     )
 
 # ==========================================
@@ -362,7 +362,7 @@ if (
 
     st.plotly_chart(
         fig_causes,
-        use_container_width=True
+        width="stretch"
     )
 
 # ==========================================
@@ -390,7 +390,7 @@ if not filtered_analyses.empty:
 
         st.dataframe(
             filtered_analyses[cols],
-            use_container_width=True
+            width="stretch"
         )
 
 # ==========================================
@@ -434,7 +434,7 @@ if (
 
         st.plotly_chart(
             fig_tcp,
-            use_container_width=True
+            width="stretch"
         )
 
 # ==========================================
@@ -506,19 +506,19 @@ with c3:
 st.subheader("📋 Incidents")
 st.dataframe(
     filtered_incidents,
-    use_container_width=True
+    width="stretch"
 )
 
 st.subheader("🌐 Events")
 st.dataframe(
     filtered_events,
-    use_container_width=True
+    width="stretch"
 )
 
 st.subheader("🔍 Analyses")
 st.dataframe(
     filtered_analyses,
-    use_container_width=True
+    width="stretch"
 )
 
 conn.close()

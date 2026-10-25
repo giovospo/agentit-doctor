@@ -188,7 +188,7 @@ st.subheader(
 
 st.dataframe(
     filtered_incidents,
-    use_container_width=True
+   width="stretch"
 )
 
 # ==================================
@@ -201,7 +201,7 @@ st.subheader(
 
 st.dataframe(
     filtered_events,
-    use_container_width=True
+    width="stretch"
 )
 
 # ==================================
@@ -214,7 +214,7 @@ st.subheader(
 
 st.dataframe(
     analyses,
-    use_container_width=True
+    width="stretch"
 )
 
 conn.close()

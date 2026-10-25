@@ -18,6 +18,10 @@ from app.services.rca_timeline_service import (
     RCATimelineService
 )
 
+from app.services.evidence_explorer_service import (
+    EvidenceExplorerService
+)
+
 # ==========================================
 # HELPERS
 # ==========================================
@@ -513,7 +517,7 @@ if (
 
     st.plotly_chart(
         configure_plotly(fig_day),
-        use_container_width=True
+        width="stretch"
     )
 
 # ==========================================
@@ -548,7 +552,7 @@ if (
 
     st.plotly_chart(
         configure_plotly(fig),
-        use_container_width=True
+        width="stretch"
     )
 
 # ==========================================
@@ -588,7 +592,7 @@ if (
 
     st.plotly_chart(
         configure_plotly(fig_causes),
-        use_container_width=True
+        width="stretch"
     )
 
 # ==========================================
@@ -634,7 +638,7 @@ if not filtered_analyses.empty:
 
         st.dataframe(
             display_analyses[cols],
-            use_container_width=True
+            width="stretch"
         )
 # ==========================================
 # TCP/IP
@@ -680,8 +684,71 @@ if (
 
         st.plotly_chart(
             configure_plotly(fig_tcp),
-            use_container_width=True
+            width="stretch"
         )
+
+# ==========================================
+# EVIDENCE EXPLORER
+# ==========================================
+
+st.subheader(
+    "🔬 Evidence Explorer"
+)
+
+explorer_data = (
+    EvidenceExplorerService()
+    .get_all_evidence()
+)
+
+evidence_df = pd.DataFrame(
+    explorer_data,
+    columns=[
+        "id",
+        "incident_id",
+        "root_cause",
+        "evidence",
+        "created_at"
+    ]
+)
+
+if not evidence_df.empty:
+
+    root_causes = sorted(
+        evidence_df["root_cause"]
+        .dropna()
+        .unique()
+        .tolist()
+    )
+
+    selected_root_cause = (
+        st.selectbox(
+            "Root Cause Filter",
+            ["All"] + root_causes
+        )
+    )
+
+    filtered_evidence = (
+        evidence_df.copy()
+    )
+
+    if (
+        selected_root_cause
+        != "All"
+    ):
+
+        filtered_evidence = (
+            filtered_evidence[
+                filtered_evidence[
+                    "root_cause"
+                ]
+                == selected_root_cause
+            ]
+        )
+
+    st.dataframe(
+        filtered_evidence,
+        width="stretch"
+    )
 
 # ==========================================
 # EXPORTS
@@ -753,21 +820,21 @@ st.subheader("📋 Incidents")
 
 st.dataframe(
     filtered_incidents,
-    use_container_width=True
+    width="stretch"
 )
 
 st.subheader("🌐 Events")
 
 st.dataframe(
     filtered_events,
-    use_container_width=True
+    width="stretch"
 )
 
 st.subheader("🔍 Analyses")
 
 st.dataframe(
     filtered_analyses,
-    use_container_width=True
+    width="stretch"
 )
 
 # ==========================================
