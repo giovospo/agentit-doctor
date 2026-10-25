@@ -22,6 +22,10 @@ from app.services.evidence_explorer_service import (
     EvidenceExplorerService
 )
 
+from app.services.risk_score_service import (
+    RiskScoreService
+)
+
 # ==========================================
 # HELPERS
 # ==========================================
@@ -398,6 +402,52 @@ if selected_incident:
             selected_incident
         )
     )
+    incident_detail = (
+        filtered_incidents[
+            filtered_incidents["id"]
+            == selected_incident
+        ]
+    )
+
+    if not incident_detail.empty:
+
+        st.subheader(
+            "🔮 Incident Risk Score"
+        )
+
+        risk_score = (
+            RiskScoreService()
+            .calculate_score(
+                severity=incident_detail.iloc[0][
+                    "severity"
+                ],
+                evidence_count=len(
+                    timeline.get(
+                        "evidence",
+                        []
+                    )
+                ),
+                confidence=max(
+                    [
+                        a.get(
+                            "confidence",
+                            0
+                        )
+                        for a in timeline.get(
+                            "analyses",
+                            []
+                        )
+                    ],
+                    default=0
+                )
+            )
+        )
+
+        st.metric(
+            "Risk Score",
+            f"{risk_score}/100"
+        )
+
 
     timeline_rows = []
 

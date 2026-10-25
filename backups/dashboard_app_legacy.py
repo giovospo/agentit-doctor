@@ -384,6 +384,13 @@ if (
 
 if selected_incident:
 
+    incident_detail = (
+        filtered_incidents[
+            filtered_incidents["id"]
+            == selected_incident
+        ]
+    )
+
     st.subheader(
         "📜 RCA Timeline"
     )
@@ -394,6 +401,45 @@ if selected_incident:
             selected_incident
         )
     )
+
+    if not incident_detail.empty:
+
+        st.subheader(
+            "🔮 Incident Risk Score"
+        )
+
+        risk_score = (
+            RiskScoreService()
+            .calculate_score(
+                severity=incident_detail.iloc[0][
+                    "severity"
+                ],
+                evidence_count=len(
+                    timeline.get(
+                        "evidence",
+                        []
+                    )
+                ),
+                confidence=max(
+                    [
+                        a.get(
+                            "confidence",
+                            0
+                        )
+                        for a in timeline.get(
+                            "analyses",
+                            []
+                        )
+                    ],
+                    default=0
+                )
+            )
+        )
+
+        st.metric(
+            "Risk Score",
+            f"{risk_score}/100"
+        )
 
     timeline_rows = []
 
@@ -420,9 +466,11 @@ if selected_incident:
         timeline_rows.append(
             {
                 "Stage": "Evidence",
-                "Item": evidence[3]
-                if len(evidence) > 3
-                else "Unknown"
+                "Item": (
+                    evidence[3]
+                    if len(evidence) > 3
+                    else "Unknown"
+                )
             }
         )
 
@@ -459,13 +507,6 @@ if selected_incident:
             fig,
             width="stretch"
         )
-
-    incident_detail = (
-        filtered_incidents[
-            filtered_incidents["id"]
-            == selected_incident
-        ]
-    )
 
     if not incident_detail.empty:
 
