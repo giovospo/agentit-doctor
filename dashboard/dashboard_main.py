@@ -395,44 +395,70 @@ if selected_incident:
         )
     )
 
-    st.json(
-        timeline
-    )
+    timeline_rows = []
 
-    st.subheader(
-        "Incident Information"
-    )
+    for event in timeline.get(
+        "events",
+        []
+    ):
 
-    incident_detail = (
-        filtered_incidents[
-            filtered_incidents["id"]
-            == selected_incident
-        ]
-    )
-
-    if not incident_detail.empty:
-
-        st.json(
-            incident_detail
-            .to_dict(
-                orient="records"
-            )[0]
+        timeline_rows.append(
+            {
+                "Stage": "Event",
+                "Item": event.get(
+                    "source",
+                    "Unknown"
+                )
+            }
         )
 
-    timeline = (
-        RCATimelineService()
-        .build_timeline(
-            selected_incident
+    for evidence in timeline.get(
+        "evidence",
+        []
+    ):
+
+        timeline_rows.append(
+            {
+                "Stage": "Evidence",
+                "Item": evidence[3]
+                if len(evidence) > 3
+                else "Unknown"
+            }
         )
+
+    for analysis in timeline.get(
+        "analyses",
+        []
+    ):
+
+        timeline_rows.append(
+            {
+                "Stage": "Root Cause",
+                "Item": analysis.get(
+                    "root_cause",
+                    "Unknown"
+                )
+            }
+        )
+
+    timeline_df = pd.DataFrame(
+        timeline_rows
     )
 
-    st.json(
-        timeline
-    )
+    if not timeline_df.empty:
 
-    st.subheader(
-        "Incident Information"
-    )
+        fig = px.scatter(
+            timeline_df,
+            x="Stage",
+            y="Item",
+            color="Stage",
+            title="RCA Timeline"
+        )
+
+        st.plotly_chart(
+            fig,
+            width="stretch"
+        )
 
     incident_detail = (
         filtered_incidents[
