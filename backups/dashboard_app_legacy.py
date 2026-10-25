@@ -684,6 +684,110 @@ if (
         )
 
 # ==========================================
+# EVIDENCE ANALYTICS
+# ==========================================
+
+st.subheader(
+    "📊 Evidence by Root Cause"
+)
+if not evidence_df.empty:
+        evidence_by_cause = (
+        evidence_df
+        .groupby(
+            "root_cause"
+        )
+        .size()
+        .reset_index(
+            name="count"
+        )
+        .sort_values(
+            "count",
+            ascending=False
+        )
+    )
+            fig_evidence = px.bar(
+        evidence_by_cause,
+        x="root_cause",
+        y="count",
+        color="count",
+        title="Evidence by Root Cause"
+    )
+            st.plotly_chart(
+        configure_plotly(
+            fig_evidence
+        ),
+        width="stretch"
+    )
+        st.subheader(
+    "🔥 Top Evidence"
+    )
+if not evidence_df.empty:
+        top_evidence = (
+        evidence_df
+        .groupby(
+            "evidence"
+        )
+        .size()
+        .reset_index(
+            name="count"
+        )
+        .sort_values(
+            "count",
+            ascending=False
+        )
+        .head(10)
+    )
+    fig_top = px.bar(
+        top_evidence,
+        x="evidence",
+        y="count",
+        color="count",
+        title="Top Evidence"
+    )
+        st.plotly_chart(
+        configure_plotly(
+            fig_top
+        ),
+        width="stretch"
+    )
+    st.subheader(
+        "📈 Evidence Trend"
+    )
+    if (
+    not evidence_df.empty
+    and "created_at"
+    in evidence_df.columns
+):
+        trend_df = (
+        evidence_df
+        .assign(
+            day=lambda df:
+            pd.to_datetime(
+                df["created_at"]
+            ).dt.date
+        )
+        .groupby(
+            "day"
+        )
+        .size()
+        .reset_index(
+            name="count"
+        )
+    )
+            fig_trend = px.line(
+        trend_df,
+        x="day",
+        y="count",
+        title="Evidence Trend"
+    )
+            st.plotly_chart(
+        configure_plotly(
+            fig_trend
+        ),
+        width="stretch"
+    )
+
+# ==========================================
 # EXPORTS
 # ==========================================
 
