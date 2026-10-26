@@ -33,6 +33,20 @@ The platform helps IT support teams identify issues faster, understand their imp
 ✅ PDF Export
 
 ---
+## 📸 Screenshots
+
+### Dashboard
+
+![Dashboard](docs/images/dashboard.png)
+
+### RCA Timeline
+
+![Timeline](docs/images/timeline.png)
+
+### Evidence Explorer
+
+![Evidence Explorer](docs/images/evidence.png)
+---
 
 ## Architecture
 

@@ -375,6 +375,8 @@ st.divider()
 # INCIDENT DETAIL
 # ==========================================
 
+selected_incident = None
+
 if (
     not filtered_incidents.empty
     and has_columns(
