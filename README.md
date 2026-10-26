@@ -1,5 +1,15 @@
 # 🩺 AgentIT Doctor
 
+![Python](https://img.shields.io/badge/Python-3.11-blue)
+
+![SQLite](https://img.shields.io/badge/SQLite-Database-green)
+
+![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-red)
+
+![License](https://img.shields.io/badge/License-MIT-yellow)
+
+![Version](https://img.shields.io/badge/Version-v1.1.0-orange)
+
 AI-Powered Windows Diagnostics & Root Cause Analysis Platform
 
 ## Overview
@@ -42,6 +52,8 @@ The platform helps IT support teams identify issues faster, understand their imp
 ### RCA Timeline
 
 ![Timeline](docs/images/timeline.png)
+
+---
 
 ### Evidence Explorer
 
