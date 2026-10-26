@@ -1,10 +1,9 @@
 import sqlite3
 
-VALID_TABLES = {
-    "incidents",
-    "events",
-    "analyses",
-    "evidence"
+TABLE_QUERIES = {
+    "incidents": "SELECT COUNT(*) FROM incidents",
+    "events": "SELECT COUNT(*) FROM events",
+    "analyses": "SELECT COUNT(*) FROM analyses"
 }
 
 conn = sqlite3.connect(
@@ -13,23 +12,9 @@ conn = sqlite3.connect(
 
 cursor = conn.cursor()
 
-tables = [
-    "incidents",
-    "events",
-    "analyses"
-]
+for table, query in TABLE_QUERIES.items():
 
-for table in tables:
-
-    if table not in VALID_TABLES:
-
-        raise ValueError(
-            f"Invalid table: {table}"
-        )
-
-    cursor.execute(
-        f"SELECT COUNT(*) FROM {table}"
-    )
+    cursor.execute(query)
 
     count = cursor.fetchone()[0]
 
