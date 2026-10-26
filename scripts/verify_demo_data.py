@@ -1,25 +1,31 @@
 import sqlite3
 
-conn = sqlite3.connect("storage/diagnostics.db")
-cursor = conn.cursor()
+DB_PATH = "storage/diagnostics.db"
 
-tables = [
-    "incidents",
-    "events",
-    "analyses",
-    "evidence"
-]
+QUERIES = {
+    "incidents": "SELECT COUNT(*) FROM incidents",
+    "events": "SELECT COUNT(*) FROM events",
+    "analyses": "SELECT COUNT(*) FROM analyses",
+    "evidence": "SELECT COUNT(*) FROM evidence",
+}
 
-for table in tables:
 
-    cursor.execute(
-        f"SELECT COUNT(*) FROM {table}"
-    )
+def main():
+    conn = sqlite3.connect(DB_PATH)
 
-    total = cursor.fetchone()[0]
+    try:
+        cursor = conn.cursor()
 
-    print(
-        f"{table}: {total}"
-    )
+        for table_name, query in QUERIES.items():
+            cursor.execute(query)
 
-conn.close()
+            total = cursor.fetchone()[0]
+
+            print(f"{table_name}: {total}")
+
+    finally:
+        conn.close()
+
+
+if __name__ == "__main__":
+    main()
