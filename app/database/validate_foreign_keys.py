@@ -1,13 +1,10 @@
 import sqlite3
 
-VALID_TABLES = {
-    "incidents",
-    "events",
-    "analyses",
-    "diagnostics",
-    "agent_runs",
-    "audit_log",
-    "evidence"
+TABLE_PRAGMAS = {
+    "events": "PRAGMA foreign_key_list(events)",
+    "analyses": "PRAGMA foreign_key_list(analyses)",
+    "diagnostics": "PRAGMA foreign_key_list(diagnostics)",
+    "agent_runs": "PRAGMA foreign_key_list(agent_runs)"
 }
 
 conn = sqlite3.connect(
@@ -16,25 +13,14 @@ conn = sqlite3.connect(
 
 cursor = conn.cursor()
 
-for table in [
-    "events",
-    "analyses",
-    "diagnostics",
-    "agent_runs"
-]:
-
-    if table not in VALID_TABLES:
-
-        raise ValueError(
-            f"Invalid table: {table}"
-        )
+for table, pragma_query in TABLE_PRAGMAS.items():
 
     print(
         f"\nForeign Keys: {table}"
     )
 
     cursor.execute(
-        f"PRAGMA foreign_key_list({table})"
+        pragma_query
     )
 
     for fk in cursor.fetchall():
