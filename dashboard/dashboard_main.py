@@ -801,6 +801,56 @@ if not evidence_df.empty:
     )
 
 # ==========================================
+# RCA RISK HEATMAP
+# ==========================================
+
+st.subheader(
+    "🔥 RCA Risk Heatmap"
+)
+
+if (
+    not filtered_analyses.empty
+    and not filtered_incidents.empty
+):
+
+    heatmap_df = (
+        filtered_analyses.merge(
+            filtered_incidents[
+                [
+                    "id",
+                    "severity"
+                ]
+            ],
+            left_on="incident_id",
+            right_on="id",
+            how="left"
+        )
+    )
+
+    heatmap_data = pd.crosstab(
+        heatmap_df[
+            "root_cause"
+        ],
+        heatmap_df[
+            "severity"
+        ]
+    )
+
+    if not heatmap_data.empty:
+
+        fig_heatmap = px.imshow(
+            heatmap_data,
+            text_auto=True,
+            aspect="auto",
+            title="Risk Heatmap"
+        )
+
+        st.plotly_chart(
+            fig_heatmap,
+            width="stretch"
+        )
+        
+# ==========================================
 # EXPORTS
 # ==========================================
 
