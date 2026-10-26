@@ -26,6 +26,10 @@ from app.services.risk_score_service import (
     RiskScoreService
 )
 
+from app.dashboard.timeline import (
+    render_timeline
+)
+
 # ==========================================
 # HELPERS
 # ==========================================
@@ -449,70 +453,9 @@ if selected_incident:
         )
 
 
-    timeline_rows = []
-
-    for event in timeline.get(
-        "events",
-        []
-    ):
-
-        timeline_rows.append(
-            {
-                "Stage": "Event",
-                "Item": event.get(
-                    "source",
-                    "Unknown"
-                )
-            }
-        )
-
-    for evidence in timeline.get(
-        "evidence",
-        []
-    ):
-
-        timeline_rows.append(
-            {
-                "Stage": "Evidence",
-                "Item": evidence[3]
-                if len(evidence) > 3
-                else "Unknown"
-            }
-        )
-
-    for analysis in timeline.get(
-        "analyses",
-        []
-    ):
-
-        timeline_rows.append(
-            {
-                "Stage": "Root Cause",
-                "Item": analysis.get(
-                    "root_cause",
-                    "Unknown"
-                )
-            }
-        )
-
-    timeline_df = pd.DataFrame(
-        timeline_rows
+    render_timeline(
+        timeline
     )
-
-    if not timeline_df.empty:
-
-        fig = px.scatter(
-            timeline_df,
-            x="Stage",
-            y="Item",
-            color="Stage",
-            title="RCA Timeline"
-        )
-
-        st.plotly_chart(
-            fig,
-            width="stretch"
-        )
 
     incident_detail = (
         filtered_incidents[
