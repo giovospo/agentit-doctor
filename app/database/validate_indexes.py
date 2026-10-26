@@ -1,0 +1,23 @@
+import sqlite3
+
+conn = sqlite3.connect(
+    "storage/diagnostics.db"
+)
+
+cursor = conn.cursor()
+
+cursor.execute(
+    """
+    SELECT
+        name
+    FROM sqlite_master
+    WHERE type='index'
+    ORDER BY name
+    """
+)
+
+for row in cursor.fetchall():
+
+    print(row[0])
+
+conn.close()

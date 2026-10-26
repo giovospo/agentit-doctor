@@ -1,0 +1,925 @@
+import sqlite3
+import sys
+from pathlib import Path
+from io import BytesIO
+
+ROOT = Path(__file__).resolve().parents[1]
+
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+import pandas as pd
+import plotly.express as px
+import streamlit as st
+
+from pdf_export import generate_pdf
+
+from app.services.rca_timeline_service import (
+    RCATimelineService
+)
+
+# ==========================================
+# HELPERS
+# ==========================================
+
+def has_columns(df, columns):
+    return all(column in df.columns for column in columns)
+
+
+def safe_dataframe(df):
+    if df is None:
+        return pd.DataFrame()
+
+    return df
+
+
+def configure_plotly(fig):
+    fig.update_layout(
+        template="plotly_white",
+        hovermode="x unified",
+        height=450
+    )
+
+    return fig
+
+
+# ==========================================
+# PAGE CONFIG
+# ==========================================
+
+st.set_page_config(
+    page_title="AgentIT Doctor Dashboard",
+    page_icon="🩺",
+    layout="wide"
+)
+
+# ==========================================
+# DATABASE
+# ==========================================
+
+try:
+
+    conn = sqlite3.connect(
+        "storage/diagnostics.db"
+    )
+
+    incidents = pd.read_sql_query(
+        "SELECT * FROM incidents",
+        conn
+    )
+
+    events = pd.read_sql_query(
+        "SELECT * FROM events",
+        conn
+    )
+
+    analyses = pd.read_sql_query(
+        "SELECT * FROM analyses",
+        conn
+    )
+
+    evidence = pd.read_sql_query(
+        "SELECT * FROM evidence",
+        conn
+    )
+
+    incidents = safe_dataframe(
+        incidents
+    )
+
+    events = safe_dataframe(
+        events
+    )
+
+    analyses = safe_dataframe(
+        analyses
+    )
+
+    evidence = safe_dataframe(
+        evidence
+    )
+
+except Exception as ex:
+
+    st.error(
+        f"Database error: {ex}"
+    )
+
+    st.stop()
+
+# ==========================================
+# SIDEBAR
+# ==========================================
+
+st.sidebar.title("🔧 Filters")
+
+search_incident = st.sidebar.text_input(
+    "Search Incident ID"
+)
+
+severity_options = []
+
+if (
+    not incidents.empty
+    and has_columns(
+        incidents,
+        ["severity"]
+    )
+):
+
+    severity_options = sorted(
+        incidents["severity"]
+        .dropna()
+        .unique()
+    )
+
+selected_severity = st.sidebar.multiselect(
+    "Severity",
+    severity_options,
+    default=severity_options
+)
+
+service_options = []
+
+if (
+    not events.empty
+    and has_columns(
+        events,
+        ["source"]
+    )
+):
+
+    service_options = sorted(
+        events["source"]
+        .dropna()
+        .unique()
+    )
+
+selected_services = st.sidebar.multiselect(
+    "Service/Event",
+    service_options,
+    default=service_options
+)
+
+# ==========================================
+# FILTER INCIDENTS
+# ==========================================
+
+filtered_incidents = incidents.copy()
+
+if (
+    has_columns(
+        filtered_incidents,
+        ["severity"]
+    )
+    and selected_severity
+):
+
+    filtered_incidents = (
+        filtered_incidents[
+            filtered_incidents["severity"]
+            .isin(selected_severity)
+        ]
+    )
+
+if (
+    search_incident
+    and has_columns(
+        filtered_incidents,
+        ["id"]
+    )
+):
+
+    filtered_incidents = (
+        filtered_incidents[
+            filtered_incidents["id"]
+            .astype(str)
+            .str.contains(
+                search_incident,
+                case=False,
+                na=False
+            )
+        ]
+    )
+
+# ==========================================
+# FILTER EVENTS
+# ==========================================
+
+filtered_events = events.copy()
+
+if (
+    has_columns(
+        filtered_events,
+        ["source"]
+    )
+    and selected_services
+):
+
+    filtered_events = (
+        filtered_events[
+            filtered_events["source"]
+            .isin(selected_services)
+        ]
+    )
+
+if (
+    not filtered_incidents.empty
+    and has_columns(
+        filtered_events,
+        ["incident_id"]
+    )
+    and has_columns(
+        filtered_incidents,
+        ["id"]
+    )
+):
+
+    filtered_events = (
+        filtered_events[
+            filtered_events["incident_id"]
+            .isin(
+                filtered_incidents["id"]
+            )
+        ]
+    )
+
+# ==========================================
+# FILTER ANALYSES
+# ==========================================
+
+filtered_analyses = analyses.copy()
+
+evidence_summary = pd.DataFrame()
+
+if (
+    not evidence.empty
+    and has_columns(
+        evidence,
+        [
+            "incident_id",
+            "root_cause",
+            "evidence"
+        ]
+    )
+):
+
+    evidence_summary = (
+        evidence
+        .groupby(
+            [
+                "incident_id",
+                "root_cause"
+            ]
+        )["evidence"]
+        .apply(
+            lambda x: ", ".join(
+                x.astype(str)
+            )
+        )
+        .reset_index()
+    )
+
+if (
+    not filtered_incidents.empty
+    and has_columns(
+        filtered_analyses,
+        ["incident_id"]
+    )
+    and has_columns(
+        filtered_incidents,
+        ["id"]
+    )
+):
+
+    filtered_analyses = (
+        filtered_analyses[
+            filtered_analyses["incident_id"]
+            .isin(
+                filtered_incidents["id"]
+            )
+        ]
+    )
+
+if (
+    not filtered_analyses.empty
+    and has_columns(
+        filtered_analyses,
+        ["confidence"]
+    )
+):
+
+    filtered_analyses = (
+        filtered_analyses
+        .sort_values(
+            "confidence",
+            ascending=False
+        )
+    )
+
+# ==========================================
+# HEADER
+# ==========================================
+
+st.title(
+    "🩺 AgentIT Doctor Dashboard"
+)
+
+st.caption(
+    "v0.9 Alpha - RCA Engine Enabled"
+)
+
+# ==========================================
+# KPI
+# ==========================================
+
+k1, k2, k3 = st.columns(3)
+
+k1.metric(
+    "Incidents",
+    len(filtered_incidents)
+)
+
+k2.metric(
+    "Events",
+    len(filtered_events)
+)
+
+k3.metric(
+    "Root Causes",
+    (
+        filtered_analyses["root_cause"].count()
+        if has_columns(
+            filtered_analyses,
+            ["root_cause"]
+        )
+        else 0
+    )
+)
+
+st.divider()
+
+# ==========================================
+# INCIDENT DETAIL
+# ==========================================
+
+if (
+    not filtered_incidents.empty
+    and has_columns(
+        filtered_incidents,
+        ["id"]
+    )
+):
+
+    incident_options = sorted(
+        filtered_incidents["id"]
+        .astype(str)
+        .unique()
+    )
+
+    selected_incident = st.selectbox(
+    "🔎 Incident Detail",
+    [""] + incident_options
+)
+
+if selected_incident:
+
+    incident_detail = (
+        filtered_incidents[
+            filtered_incidents["id"]
+            == selected_incident
+        ]
+    )
+
+    st.subheader(
+        "📜 RCA Timeline"
+    )
+
+    timeline = (
+        RCATimelineService()
+        .build_timeline(
+            selected_incident
+        )
+    )
+
+    if not incident_detail.empty:
+
+        st.subheader(
+            "🔮 Incident Risk Score"
+        )
+
+        risk_score = (
+            RiskScoreService()
+            .calculate_score(
+                severity=incident_detail.iloc[0][
+                    "severity"
+                ],
+                evidence_count=len(
+                    timeline.get(
+                        "evidence",
+                        []
+                    )
+                ),
+                confidence=max(
+                    [
+                        a.get(
+                            "confidence",
+                            0
+                        )
+                        for a in timeline.get(
+                            "analyses",
+                            []
+                        )
+                    ],
+                    default=0
+                )
+            )
+        )
+
+        st.metric(
+            "Risk Score",
+            f"{risk_score}/100"
+        )
+
+    timeline_rows = []
+
+    for event in timeline.get(
+        "events",
+        []
+    ):
+
+        timeline_rows.append(
+            {
+                "Stage": "Event",
+                "Item": event.get(
+                    "source",
+                    "Unknown"
+                )
+            }
+        )
+
+    for evidence in timeline.get(
+        "evidence",
+        []
+    ):
+
+        timeline_rows.append(
+            {
+                "Stage": "Evidence",
+                "Item": (
+                    evidence[3]
+                    if len(evidence) > 3
+                    else "Unknown"
+                )
+            }
+        )
+
+    for analysis in timeline.get(
+        "analyses",
+        []
+    ):
+
+        timeline_rows.append(
+            {
+                "Stage": "Root Cause",
+                "Item": analysis.get(
+                    "root_cause",
+                    "Unknown"
+                )
+            }
+        )
+
+    timeline_df = pd.DataFrame(
+        timeline_rows
+    )
+
+    if not timeline_df.empty:
+
+        fig = px.scatter(
+            timeline_df,
+            x="Stage",
+            y="Item",
+            color="Stage",
+            title="RCA Timeline"
+        )
+
+        st.plotly_chart(
+            fig,
+            width="stretch"
+        )
+
+    if not incident_detail.empty:
+
+        st.json(
+            incident_detail
+            .to_dict(
+                orient="records"
+            )[0]
+        )
+# ==========================================
+# INCIDENTS BY DAY
+# ==========================================
+
+st.subheader(
+    "📈 Incidents by Day"
+)
+
+if (
+    not filtered_incidents.empty
+    and has_columns(
+        filtered_incidents,
+        ["created_at"]
+    )
+):
+
+    incidents_by_day = (
+        filtered_incidents
+        .assign(
+            created_day=lambda df:
+            pd.to_datetime(
+                df["created_at"]
+            ).dt.date
+        )
+        .groupby("created_day")
+        .size()
+        .reset_index(name="count")
+    )
+
+    fig_day = px.area(
+        incidents_by_day,
+        x="created_day",
+        y="count",
+        title="Incidents by Day"
+    )
+
+    st.plotly_chart(
+        configure_plotly(fig_day),
+        width="stretch"
+    )
+
+# ==========================================
+# SEVERITY
+# ==========================================
+
+st.subheader(
+    "🚨 Severity Distribution"
+)
+
+if (
+    not filtered_incidents.empty
+    and has_columns(
+        filtered_incidents,
+        ["severity"]
+    )
+):
+
+    severity_chart = (
+        filtered_incidents
+        .groupby("severity")
+        .size()
+        .reset_index(name="count")
+    )
+
+    fig = px.bar(
+        severity_chart,
+        x="severity",
+        y="count",
+        color="severity"
+    )
+
+    st.plotly_chart(
+        configure_plotly(fig),
+        width="stretch"
+    )
+
+# ==========================================
+# ROOT CAUSES
+# ==========================================
+
+st.subheader(
+    "🔍 Top Root Causes"
+)
+
+if (
+    not filtered_analyses.empty
+    and has_columns(
+        filtered_analyses,
+        ["root_cause"]
+    )
+):
+
+    causes = (
+        filtered_analyses
+        .groupby("root_cause")
+        .size()
+        .reset_index(name="count")
+        .sort_values(
+            "count",
+            ascending=False
+        )
+        .head(10)
+    )
+
+    fig_causes = px.bar(
+        causes,
+        x="root_cause",
+        y="count",
+        color="count"
+    )
+
+    st.plotly_chart(
+        configure_plotly(fig_causes),
+        width="stretch"
+    )
+
+# ==========================================
+# RCA FINDINGS
+# ==========================================
+
+st.subheader(
+    "🤖 RCA Findings"
+)
+
+if not filtered_analyses.empty:
+
+    display_analyses = (
+        filtered_analyses.copy()
+    )
+
+    if not evidence_summary.empty:
+
+        display_analyses = (
+            display_analyses.merge(
+                evidence_summary,
+                how="left",
+                on=[
+                    "incident_id",
+                    "root_cause"
+                ]
+            )
+        )
+
+    cols = [
+        c
+        for c in [
+            "incident_id",
+            "root_cause",
+            "confidence",
+            "evidence",
+            "recommendation"
+        ]
+        if c in display_analyses.columns
+    ]
+
+    if cols:
+
+        st.dataframe(
+            display_analyses[cols],
+            width="stretch"
+        )
+# ==========================================
+# TCP/IP
+# ==========================================
+
+st.subheader(
+    "🌐 Top TCP/IP Events"
+)
+
+if (
+    not filtered_events.empty
+    and has_columns(
+        filtered_events,
+        ["source"]
+    )
+):
+
+    tcp_events = filtered_events[
+        filtered_events["source"]
+        .astype(str)
+        .str.contains(
+            "TCP",
+            case=False,
+            na=False
+        )
+    ]
+
+    if not tcp_events.empty:
+
+        tcp_chart = (
+            tcp_events
+            .groupby("source")
+            .size()
+            .reset_index(name="count")
+        )
+
+        fig_tcp = px.bar(
+            tcp_chart,
+            x="source",
+            y="count",
+            color="count"
+        )
+
+        st.plotly_chart(
+            configure_plotly(fig_tcp),
+            width="stretch"
+        )
+
+# ==========================================
+# EVIDENCE ANALYTICS
+# ==========================================
+
+st.subheader(
+    "📊 Evidence by Root Cause"
+)
+if not evidence_df.empty:
+        evidence_by_cause = (
+        evidence_df
+        .groupby(
+            "root_cause"
+        )
+        .size()
+        .reset_index(
+            name="count"
+        )
+        .sort_values(
+            "count",
+            ascending=False
+        )
+    )
+            fig_evidence = px.bar(
+        evidence_by_cause,
+        x="root_cause",
+        y="count",
+        color="count",
+        title="Evidence by Root Cause"
+    )
+            st.plotly_chart(
+        configure_plotly(
+            fig_evidence
+        ),
+        width="stretch"
+    )
+        st.subheader(
+    "🔥 Top Evidence"
+    )
+if not evidence_df.empty:
+        top_evidence = (
+        evidence_df
+        .groupby(
+            "evidence"
+        )
+        .size()
+        .reset_index(
+            name="count"
+        )
+        .sort_values(
+            "count",
+            ascending=False
+        )
+        .head(10)
+    )
+    fig_top = px.bar(
+        top_evidence,
+        x="evidence",
+        y="count",
+        color="count",
+        title="Top Evidence"
+    )
+        st.plotly_chart(
+        configure_plotly(
+            fig_top
+        ),
+        width="stretch"
+    )
+    st.subheader(
+        "📈 Evidence Trend"
+    )
+    if (
+    not evidence_df.empty
+    and "created_at"
+    in evidence_df.columns
+):
+        trend_df = (
+        evidence_df
+        .assign(
+            day=lambda df:
+            pd.to_datetime(
+                df["created_at"]
+            ).dt.date
+        )
+        .groupby(
+            "day"
+        )
+        .size()
+        .reset_index(
+            name="count"
+        )
+    )
+            fig_trend = px.line(
+        trend_df,
+        x="day",
+        y="count",
+        title="Evidence Trend"
+    )
+            st.plotly_chart(
+        configure_plotly(
+            fig_trend
+        ),
+        width="stretch"
+    )
+
+# ==========================================
+# EXPORTS
+# ==========================================
+
+st.subheader(
+    "📤 Export Data"
+)
+
+c1, c2, c3 = st.columns(3)
+
+csv_data = (
+    filtered_incidents
+    .to_csv(index=False)
+    .encode("utf-8")
+)
+
+with c1:
+
+    st.download_button(
+        "⬇ Download CSV",
+        csv_data,
+        "incidents.csv",
+        "text/csv"
+    )
+
+excel_buffer = BytesIO()
+
+with pd.ExcelWriter(
+    excel_buffer,
+    engine="openpyxl"
+) as writer:
+
+    filtered_incidents.to_excel(
+        writer,
+        sheet_name="Incidents",
+        index=False
+    )
+
+with c2:
+
+    st.download_button(
+        "⬇ Download Excel",
+        excel_buffer.getvalue(),
+        "incidents.xlsx",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+pdf_buffer = generate_pdf(
+    incidents_count=len(filtered_incidents),
+    events_count=len(filtered_events),
+    root_causes_count=len(filtered_analyses)
+)
+
+with c3:
+
+    st.download_button(
+        "⬇ Download PDF",
+        data=pdf_buffer,
+        file_name="agentit_report.pdf",
+        mime="application/pdf"
+    )
+
+# ==========================================
+# TABLES
+# ==========================================
+
+st.subheader("📋 Incidents")
+
+st.dataframe(
+    filtered_incidents,
+    width="stretch"
+)
+
+st.subheader("🌐 Events")
+
+st.dataframe(
+    filtered_events,
+    width="stretch"
+)
+
+st.subheader("🔍 Analyses")
+
+st.dataframe(
+    filtered_analyses,
+    width="stretch"
+)
+
+# ==========================================
+# CLOSE CONNECTION
+# ==========================================
+
+try:
+    conn.close()
+except Exception:
+    pass
