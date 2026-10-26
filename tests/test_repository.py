@@ -1,7 +1,21 @@
+from app.database import connection
 from app.database.connection import get_connection
 from app.database.repositories.diagnosis_repository import (
     DiagnosisRepository
 )
+
+
+def test_database_connection_creates_parent_directory(
+    tmp_path,
+    monkeypatch
+):
+    db_path = tmp_path / "nested" / "diagnostics.db"
+    monkeypatch.setattr(connection, "DB_PATH", str(db_path))
+
+    conn = connection.get_connection()
+
+    assert db_path.is_file()
+    conn.close()
 
 
 def test_database_connection():
