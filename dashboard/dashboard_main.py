@@ -26,6 +26,9 @@ from app.services.risk_score_service import (
     RiskScoreService
 )
 
+from app.database.bootstrap import (
+    bootstrap_database
+)
 from app.dashboard.timeline import (
     render_timeline
 )
@@ -70,6 +73,8 @@ st.set_page_config(
 # ==========================================
 
 try:
+
+    bootstrap_database()
 
     conn = sqlite3.connect(
         "storage/diagnostics.db"
