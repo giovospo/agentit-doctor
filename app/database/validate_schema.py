@@ -1,5 +1,14 @@
 import sqlite3
 
+VALID_TABLES = {
+    "incidents",
+    "events",
+    "analyses",
+    "diagnostics",
+    "agent_runs",
+    "audit_log"
+}
+
 conn = sqlite3.connect(
     "storage/diagnostics.db"
 )
@@ -16,6 +25,12 @@ tables = [
 ]
 
 for table in tables:
+
+    if table not in VALID_TABLES:
+
+        raise ValueError(
+            f"Invalid table: {table}"
+        )
 
     print(f"\n{'=' * 50}")
     print(f"TABLE: {table}")

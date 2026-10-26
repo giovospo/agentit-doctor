@@ -1,5 +1,15 @@
 import sqlite3
 
+VALID_TABLES = {
+    "incidents",
+    "events",
+    "analyses",
+    "diagnostics",
+    "agent_runs",
+    "audit_log",
+    "evidence"
+}
+
 conn = sqlite3.connect(
     "storage/diagnostics.db"
 )
@@ -12,6 +22,12 @@ for table in [
     "diagnostics",
     "agent_runs"
 ]:
+
+    if table not in VALID_TABLES:
+
+        raise ValueError(
+            f"Invalid table: {table}"
+        )
 
     print(
         f"\nForeign Keys: {table}"
